@@ -37,7 +37,7 @@
       </init-param>
       <init-param>
          <param-name>contextConfigLocation</param-name>
-         <param-value>com.baldrick.texas.holdem.config.WebSocketConfig</param-value>
+         <param-value>com.baldrick.texas.holdem.assembly.MainAssembly</param-value>
       </init-param>
       <load-on-startup>1</load-on-startup>
    </servlet>

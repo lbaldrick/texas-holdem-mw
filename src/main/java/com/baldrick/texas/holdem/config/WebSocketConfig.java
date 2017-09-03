@@ -7,7 +7,6 @@ import org.springframework.web.socket.config.annotation.*;
 
 @Configuration
 @EnableWebSocketMessageBroker
-@ComponentScan(basePackages = "com.baldrick.texas.holdem")
 public class WebSocketConfig extends AbstractWebSocketMessageBrokerConfigurer {
 
     public WebSocketConfig() {

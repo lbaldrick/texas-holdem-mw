@@ -16,6 +16,8 @@ import java.util.function.Consumer;
 @PropertySource({
         "classpath:runtime.properties"
 })
+@ComponentScan(basePackages = "com.baldrick.texas.holdem")
+@Import({ WebSocketConfig.class })
 public class MainAssembly extends WebMvcConfigurerAdapter {
 
     private static final int MAX_NUM_OF_PLAYERS = 8;
