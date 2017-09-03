@@ -1,6 +1,6 @@
 package com.baldrick.texas.holdem.model;
 
-import com.baldrick.texas.holdem.statemachine.PlayerStatus;
+import com.baldrick.texas.holdem.enums.PlayerStatus;
 
 
 public class Player {
@@ -10,12 +10,16 @@ public class Player {
     private final Hand hand;
     private PlayerStatus playerStatus;
 
-    public Player(String playerId, String username, double accountBalance, Hand hand, PlayerStatus playerStatus) {
+    private Player(String playerId, String username, double accountBalance, Hand hand, PlayerStatus playerStatus) {
         this.playerId = playerId;
         this.username = username;
         this.accountBalance = accountBalance;
         this.hand = hand;
         this.playerStatus = playerStatus;
+    }
+
+    public static Player newInstance(String playerId, String username, double accountBalance, Hand hand, PlayerStatus playerStatus) {
+       return new Player(playerId, username, accountBalance, hand, playerStatus);
     }
 
     public String getPlayerId() {

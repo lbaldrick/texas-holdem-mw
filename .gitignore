@@ -1,2 +1,6 @@
 .nb-configuration.xml
 nbproject/
+target/
+.idea/
+logs/
+*.iml

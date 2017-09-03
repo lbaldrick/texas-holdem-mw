@@ -14,11 +14,12 @@
          org.springframework.web.context.support.AnnotationConfigWebApplicationContext
       </param-value>
    </context-param>
+
    <context-param>
       <param-name>contextConfigLocation</param-name>
       <param-value>com.baldrick.texas.holdem.assembly.MainAssembly</param-value>
    </context-param>
-   
+
    <listener>
       <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
    </listener>
@@ -36,15 +37,15 @@
       </init-param>
       <init-param>
          <param-name>contextConfigLocation</param-name>
-         <param-value>com.baldrick.texas.holdem.assembly.MainAssembly</param-value>
+         <param-value>com.baldrick.texas.holdem.config.WebSocketConfig</param-value>
       </init-param>
       <load-on-startup>1</load-on-startup>
    </servlet>
    <servlet-mapping>
       <servlet-name>rest</servlet-name>
-      <url-pattern>/*</url-pattern>
+      <url-pattern>/texas-holdem-mw/*</url-pattern>
    </servlet-mapping>
- 
+
    <welcome-file-list>
       <welcome-file />
    </welcome-file-list>
