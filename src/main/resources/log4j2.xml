@@ -16,8 +16,7 @@
                 <pattern>%d{yyyy-MM-dd hh:mm:ss a} [%thread] %-5level %logger - %rEx %msg%n</pattern>
             </layout>
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${LOGFILE_PATH}/spring-mybatis-log-%d{yyyy-MM-dd}-%i.txt
-                </fileNamePattern>
+                <fileNamePattern>LOG.txt</fileNamePattern>
                 <timeBasedFileNamingAndTriggeringPolicy
                         class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                     <maxFileSize>2MB</maxFileSize>

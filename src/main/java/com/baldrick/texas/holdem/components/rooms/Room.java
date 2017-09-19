@@ -5,12 +5,10 @@ import com.baldrick.texas.holdem.enums.PlayerStatus;
 import com.baldrick.texas.holdem.model.Card;
 import com.baldrick.texas.holdem.model.Player;
 import com.baldrick.texas.holdem.components.game.Game;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.function.Consumer;
-
+import com.baldrick.texas.holdem.notifiers.Notifier;
 import com.baldrick.texas.holdem.states.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +21,9 @@ public class Room implements Context {
     
     private final Game game;
     
-    private final Consumer<StateChange> stateChangeNotifier;
+    private final Notifier stateChangeNotifier;
+
+    private final String roomId;
     
     private boolean gameInProgress = false;
     
@@ -34,31 +34,30 @@ public class Room implements Context {
     private int currentGameStage = 0;
     
     private int currentPlayerIndex = 0;
-
-    private Future playerTimer = null;
     
     private static final Logger logger = LogManager.getLogger(Room.class);
    
     
-    public Room(Game game, Consumer<StateChange> stateChangeNotifier, long gameWaitPeriod, ExecutorService executor) {
+    public Room(Game game, Notifier stateChangeNotifier, long gameWaitPeriod, ExecutorService executor, String roomId) {
         this.game = game;
         this.stateChangeNotifier = stateChangeNotifier;
         this.gameWaitPeriod = gameWaitPeriod;
         this.executor = executor;
-    }
-    
-    public static Room newInstance(Game game, Consumer<StateChange> stateChangeNotifier, long gameWaitPeriod, ExecutorService executor, ExecutorService timerExecutor) {
-        return new Room(game, stateChangeNotifier, gameWaitPeriod, executor);
+        this.roomId = roomId;
     }
     
     private void start() {
         logger.info("Requested start of state machine");
-        executor.execute(() -> {
-            currentGameStage = 0;
-            currentPlayerIndex = 0;
-            this.state = game.getCurrentPlayers().size() >= 2 ? TexasHoldemState.START : TexasHoldemState.AMAITING_MORE_PLAYERS;
+        this.state = game.getCurrentPlayers().size() >= 2 ? TexasHoldemState.START : TexasHoldemState.AMAITING_MORE_PLAYERS;
+        if (this.state.equals(TexasHoldemState.AMAITING_MORE_PLAYERS)) {
             this.state.process(this);
-        });
+        } else {
+            executor.execute(() -> {
+                currentGameStage = 0;
+                currentPlayerIndex = 0;
+                this.state.process(this);
+            });
+        }
     }
 
     @Override
@@ -67,55 +66,81 @@ public class Room implements Context {
         this.state = (TexasHoldemState) state;
         this.state.process(this);
     }
-    
-    public State getState() {
-        return this.state;
-    }
       
     public void playerBet(String playerId, double amount) {
         logger.info("Player with id={} BET amount={}", playerId, amount);
-        this.game.addToPot(amount);
-        notifyPlayerStatusChange(TexasHoldemState.PLAYER_BET, PlayerStatus.BET, playerId);
+        if( this.game.playerBet(playerId, amount)) {
+            notifyPlayerStatusChange(TexasHoldemState.PLAYER_BET, PlayerStatus.BET, playerId);
+        } else {
+            notifyPlayerStatusChange(TexasHoldemState.PLAYER_FOLDED, PlayerStatus.FOLD, playerId);
+        }
     }
     
     public void playerRaise(String playerId, double amount) {
         logger.info("Player with id={} RAISED amount={}", playerId, amount);
-        this.game.addToPot(amount);
-        notifyPlayerStatusChange(TexasHoldemState.PLAYER_RAISED, PlayerStatus.RAISE, playerId);
+        if( this.game.playerRaise(playerId, amount)) {
+            notifyPlayerStatusChange(TexasHoldemState.PLAYER_RAISED, PlayerStatus.RAISE, playerId);
+        } else {
+            notifyPlayerStatusChange(TexasHoldemState.PLAYER_FOLDED, PlayerStatus.FOLD, playerId);
+        }
     }
-    
-    
+
     public void playerCheck(String playerId) {
         logger.info("Player with id={} CHECKED");
-        notifyPlayerStatusChange(TexasHoldemState.PLAYER_CHECKED, PlayerStatus.CHECK, playerId);
+        if(this.game.playerCheck(playerId)) {
+            notifyPlayerStatusChange(TexasHoldemState.PLAYER_CHECKED, PlayerStatus.CHECK, playerId);
+        } else {
+            notifyPlayerStatusChange(TexasHoldemState.PLAYER_FOLDED, PlayerStatus.FOLD, playerId);
+        }
     }
     
     public void playerFold(String playerId) {
         logger.info("Player with id={} FOLDED");
+        this.game.playerFold(playerId);
         notifyPlayerStatusChange(TexasHoldemState.PLAYER_FOLDED, PlayerStatus.FOLD, playerId);
     }
 
     public void playerLeftTable(String playerId) {
         logger.info("Player with id={} LEFT TABLE");
+        this.game.playerLeftTable(playerId);
         notifyPlayerStatusChange(TexasHoldemState.PLAYER_LEFT, PlayerStatus.LEFT_TABLE, playerId);
     }
-    
+
+    public String getRoomId() {
+        return roomId;
+    }
+
+    public boolean isPlayerInGame(String playerId) {
+        return this.game.getCurrentPlayers().contains(playerId);
+    }
+
+
+    public boolean addPlayer(Player player) {
+        if (gameInProgress) {
+            logger.warn("Could not player to table as game in progress. username={}", player.getUsername());
+            return false;
+        }
+
+        boolean playerAdded = this.game.addPlayer(player);
+
+        if (canStartGame()) {
+            logger.warn("Starting game");
+            start();
+        }
+        return playerAdded;
+    }
+
     private void doStart() {
         gameInProgress = true;
+        this.game.start();
         changeState(TexasHoldemState.DEAL_PLAYER_CARDS);
     }
     
     private void doDealPlayerCards() {
-        List<Player> players = this.game.getCurrentPlayers();
+        List<Player> players = this.game.dealCardsToAllPlayers();
         
         players.forEach((player) -> {
-            List<Card> cards = new ArrayList<>();
-            for (int x = 0; x < 2 ; x++) {
-                cards.add(this.game.dealCard());
-            }
-            
-            player.getHand().addCards(cards);
-            this.state.notify(this, new DealtCardsStateChange(new DealtCardsState(cards, DealtCardsStatus.PLAYER_CARDS, player.getPlayerId())));
+            this.state.notify(this, new DealtCardsStateChange(new DealtCardsState(player.getHand().getCards(), DealtCardsStatus.PLAYER_CARDS, player.getPlayerId())));
         });
         
         changeState(TexasHoldemState.AWAIT_PLAYER_ACTION);
@@ -125,58 +150,50 @@ public class Room implements Context {
         logger.debug("Checking to request player action or change game stage");
         if (numOfPlayersTurnsTaken == this.game.getCurrentPlayers().size() && this.game.getCurrentPlayers().size() >= 2) {
             numOfPlayersTurnsTaken = 0;
+            currentPlayerIndex = 0;
             changeState(getGameStage(++currentGameStage));
         } else {
-            Player player = this.game.getPlayer(currentPlayerIndex);
+            Player player = this.game.playerHasFocus(currentPlayerIndex);
             String playerId = player.getPlayerId();
             List<Card> cards = player.getHand().getCards();
             currentPlayerIndex++;
             logger.info("Notifying player HAS_FOCUS playerId={}", playerId);
             this.state.notify(this, new PlayerStateChange(new PlayerState(PlayerStatus.HAS_FOCUS, playerId, cards, 0.0)));
             logger.debug("Try to starting timer");
-            setPlayerWaitTimer();
+            try {
+                setPlayerWaitTimer(playerId);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
     
-    private void setPlayerWaitTimer() {
+    private void setPlayerWaitTimer(String playerId) throws InterruptedException {
         logger.info("Starting player timer currentTime={}", System.currentTimeMillis());
+        Thread.sleep(this.gameWaitPeriod);
 
-        // TODO - this is pretty crap will change this later and have timeout managed outside of room. Will have some kind of game manager that manages all the games and
-        // will be responsible for keeping track of all the timeouts in each game ensuring no threads are unncessarily blocked but this will do for now.
-
-        playerTimer = executor.submit(() -> {
-            try {
-                Thread.sleep(this.gameWaitPeriod);
-            } catch (InterruptedException ex) {
-                logger.error(ex);
-            } finally {
-                logger.info("Ending player timer currentTime={}", System.currentTimeMillis());
-                numOfPlayersTurnsTaken++;
-                changeState(TexasHoldemState.AWAIT_PLAYER_ACTION);
-            }
-        });
-
-    }
-    
-    private void notifyPlayerStatusChange(TexasHoldemState state, PlayerStatus status, String playerId) {
-        notifyPlayerStatusChange(state, status, playerId, 0.0);
-    }
-    
-    private void notifyPlayerStatusChange(TexasHoldemState state, PlayerStatus status, String playerId, double amount) {
-        cancelPlayerWaitTimer();
-        changeState(state);
-        this.state.notify(this, new PlayerStateChange(new PlayerState(status, playerId, null, amount)));
+        logger.info("Ending player timer currentTime={}", System.currentTimeMillis());
+        numOfPlayersTurnsTaken++;
+        // TODO - player wont always check if timedout can cold to so will have to implement that
+        notifyPlayerStatusChange(TexasHoldemState.PLAYER_CHECKED, PlayerStatus.CHECK, playerId, false);
         changeState(TexasHoldemState.AWAIT_PLAYER_ACTION);
     }
-    
-    private void cancelPlayerWaitTimer() {
-        if (playerTimer != null) {
-            playerTimer.cancel(true);
-        }
-        
-        playerTimer = null;
+
+    private void notifyPlayerStatusChange(TexasHoldemState state, PlayerStatus status, String playerId) {
+        notifyPlayerStatusChange(state, status, playerId, 0.0, true);
+    }
+
+    private void notifyPlayerStatusChange(TexasHoldemState state, PlayerStatus status, String playerId, boolean shouldChangeState) {
+        notifyPlayerStatusChange(state, status, playerId, 0.0, shouldChangeState);
     }
     
+    private void notifyPlayerStatusChange(TexasHoldemState state, PlayerStatus status, String playerId, double amount, boolean shouldChangeState) {
+        this.state.notify(this, new PlayerStateChange(new PlayerState(status, playerId, null, amount)));
+        if (shouldChangeState) {
+            changeState(TexasHoldemState.AWAIT_PLAYER_ACTION);
+        }
+    }
+
     private void doDealFlop() {
         dealTableCards(3, DealtCardsStatus.FLOP);
     }  
@@ -200,19 +217,7 @@ public class Room implements Context {
     }
 
     private void doFinish() {
-        //END
-    }
-    
-    private List<Card> dealCards(int numOfCards) {
-        List<Card> cards = new ArrayList<>();
-        
-        for(int x = 0; x < numOfCards; x++) {
-            cards.add(this.game.dealCard());
-        }
-        
-        currentPlayerIndex = 0;
-
-        return cards;
+        this.game.finish();
     }
     
     private State getGameStage(int stage) {
@@ -231,31 +236,15 @@ public class Room implements Context {
     private void dealTableCards(int num, DealtCardsStatus status) {
         this.state.notify(
                 this,
-                new DealtCardsStateChange(new DealtCardsState(this.dealCards(num), status , "TABLE")));
+                new DealtCardsStateChange(new DealtCardsState(this.game.dealTableCards(num), status , "TABLE")));
         changeState(TexasHoldemState.AWAIT_PLAYER_ACTION);
     }
 
-    public boolean addPlayer(Player player) {
-        if (gameInProgress) {
-            return false;
-        }
-        
-        boolean playerAdded = this.game.addPlayer(player);
-        if (canStartGame()) {
-            start();
-        }
-        return playerAdded;
-    }
-    
-    public boolean canStartGame() {
+    private boolean canStartGame() {
         return this.game.getCurrentPlayers().size() >= 2 && !gameInProgress;
     }
 
-    public boolean isPlayerInGame(String playerId) {
-        return this.game.getCurrentPlayers().contains(playerId);
-    }
-
-    public enum TexasHoldemState implements State<Room, StateChange> {
+       public enum TexasHoldemState implements State<Room, StateChange> {
         START {
             @Override
             public void process(Room context) {
@@ -357,9 +346,7 @@ public class Room implements Context {
         },
         AMAITING_MORE_PLAYERS {
             @Override
-            public void process(Room context) {
-                
-            }
+            public void process(Room context) {}
             
             @Override
             public void notify(Room context, StateChange stateChange) {
@@ -413,7 +400,7 @@ public class Room implements Context {
         FINISHED {
             @Override
             public void process(Room context) {
-            context.doFinish();
+                context.doFinish();
             }
             
             @Override
@@ -424,7 +411,7 @@ public class Room implements Context {
         
         protected void notifyStateChange(Room context, StateChange stateChange) {
             logger.info("Notifying of state={} with change={}", context.state, stateChange.toString());
-            context.stateChangeNotifier.accept(stateChange);
+            context.stateChangeNotifier.notify(stateChange, "/topic/" + context.getRoomId());
         };
     }
 }

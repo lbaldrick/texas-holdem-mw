@@ -9,7 +9,7 @@ public class DealtCardsStateChange implements StateChange<DealtCardsState> {
 
     public DealtCardsStateChange(DealtCardsState dealtCardsState) {
         this.dealtCardsState = dealtCardsState;
-        this.id = "DEALER";
+        this.id = "DEALER_STATE_CHANGE";
     }
 
     @Override
