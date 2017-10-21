@@ -1,19 +1,11 @@
 package com.baldrick.texas.holdem.components.game;
 
-import com.baldrick.texas.holdem.components.rooms.Room;
-import com.baldrick.texas.holdem.controllers.GameController;
-import com.baldrick.texas.holdem.enums.DealtCardsStatus;
 import com.baldrick.texas.holdem.enums.PlayerStatus;
 import com.baldrick.texas.holdem.model.Card;
 import com.baldrick.texas.holdem.model.Deck;
 import com.baldrick.texas.holdem.model.Player;
 import com.baldrick.texas.holdem.model.Pot;
-import com.baldrick.texas.holdem.states.DealtCardsState;
-import com.baldrick.texas.holdem.states.DealtCardsStateChange;
-import com.baldrick.texas.holdem.states.PlayerState;
-import com.baldrick.texas.holdem.states.PlayerStateChange;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +13,8 @@ import java.util.Optional;
 
 public class Game {
 
-    private static final Logger logger = LogManager.getLogger(Game.class);
-    
+    private static final Logger logger = Logger.getLogger(Game.class);
+
     private final Deck deck;
     
     private final Pot pot;
@@ -45,38 +37,38 @@ public class Game {
     
     public synchronized boolean addPlayer(Player player) {
         if (currentPlayersInPlay.size() > maxNumPlayers) {
-            logger.warn("Could not add player to game as max players at table. username={}", player.getUsername());
+            logger.warn("Could not add player to game as max players at table. username=" + player.getUsername());
             return false;
         }
 
-        logger.warn("Added player to game. username={}", player.getUsername());
+        logger.warn("Added player to game. username=" + player.getUsername());
         currentPlayersInPlay.add(player);
         
         return true;
     }
 
     public boolean playerBet(String playerId, double amount) {
-        logger.info("Player with id={} BET amount={}", playerId, amount);
+        logger.info("Player with id=" + playerId + " BET amount={}," + amount);
         return playerBetOrRaised(playerId, amount, PlayerStatus.BET);
     }
 
     public boolean playerRaise(String playerId, double amount) {
-        logger.info("Player with id={} RAISED amount={}", playerId, amount);
+        logger.info("Player with id=" + playerId + "RAISED amount=" + amount);
         return playerBetOrRaised(playerId, amount, PlayerStatus.RAISE);
     }
 
     public boolean playerCheck(String playerId) {
-        logger.info("Player with id={} CHECKED");
+        logger.info("Player with id=" + playerId + "CHECKED");
         return setPlayerStatus(playerId, PlayerStatus.CHECK);
     }
 
     public boolean playerFold(String playerId) {
-        logger.info("Player with id={} FOLDED");
+        logger.info("Player with id=" + playerId + "FOLDED");
         return setPlayerStatus(playerId, PlayerStatus.FOLD);
     }
 
     public boolean playerLeftTable(String playerId) {
-        logger.info("Player with id={} LEFT TABLE");
+        logger.info("Player with id=" + playerId + " LEFT TABLE");
         return setPlayerStatus(playerId, PlayerStatus.LEFT_TABLE);
     }
 
@@ -134,6 +126,10 @@ public class Game {
         }
 
         return tableCards;
+    }
+
+    public int getMaxNumPlayers() {
+        return maxNumPlayers;
     }
 
     private void shuffleDeck() {

@@ -4,14 +4,16 @@ import com.baldrick.texas.holdem.components.rooms.RoomsManager;
 import com.baldrick.texas.holdem.enums.PlayerStatus;
 import com.baldrick.texas.holdem.model.Player;
 import com.baldrick.texas.holdem.components.rooms.Room;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.baldrick.texas.holdem.model.RoomDetails;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class GameService {
-    private static final Logger logger = LogManager.getLogger(GameService.class);
+    private static final Logger logger = Logger.getLogger(GameService.class);
 
     private final RoomsManager roomsManager;
 
@@ -24,8 +26,16 @@ public class GameService {
         return roomsManager.addPlayerToTable(tableId, player);
     }
 
+    public List<Player> getPlayersAtTable(String tableId) {
+        return roomsManager.getAllPlayersAtTable(tableId);
+    }
+
     public void performPlayerAction(PlayerStatus requestedStatus, String tableId, String playerId) {
         performPlayerAction(requestedStatus, tableId, playerId, 0.0);
+    }
+
+    public List<RoomDetails> getRooms() {
+        return roomsManager.getRooms();
     }
 
     private void performPlayerAction(PlayerStatus requestedStatus, String tableId, String playerId, double amount) {

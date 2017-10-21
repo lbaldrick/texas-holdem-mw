@@ -1,12 +1,10 @@
 package com.baldrick.texas.holdem.dtos;
 
-public class WsMessage {
+public class WsMessageDto {
 
     private String payload;
 
-    public WsMessage() {}
-
-    public WsMessage(String payload) {
+    public WsMessageDto(String payload) {
         this.payload = payload;
     }
 

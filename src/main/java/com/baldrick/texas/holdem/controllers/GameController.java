@@ -1,47 +1,48 @@
 package com.baldrick.texas.holdem.controllers;
 
 import com.baldrick.texas.holdem.dtos.AddPlayerDto;
-import com.baldrick.texas.holdem.enums.PlayerStatus;
-import com.baldrick.texas.holdem.model.Hand;
 import com.baldrick.texas.holdem.model.Player;
+import com.baldrick.texas.holdem.model.RoomDetails;
 import com.baldrick.texas.holdem.services.GameService;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.baldrick.texas.holdem.services.LoginService;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 @RestController
-@RequestMapping(path="/game")
+@RequestMapping(path = "/game")
 public class GameController {
 
-    private static final Logger logger = LogManager.getLogger(GameController.class);
+    private static final Logger logger = Logger.getLogger(GameController.class);
 
     private final GameService gameService;
 
-    private int playerId = 0;
+    private final LoginService loginService;
 
     @Autowired
-    public GameController(GameService gameService) {
+    public GameController(GameService gameService,  LoginService loginService) {
         this.gameService = gameService;
+        this.loginService = loginService;
     }
 
-   @CrossOrigin
-   @RequestMapping(method = RequestMethod.POST)
-   @ResponseBody
-   public String addPlayerToGame(@RequestBody AddPlayerDto request) {
-       String tableId = request.getTableId();
-       String username = request.getUsername();
-       logger.info("Attempting to add player to table. username={} tableId={}", username, tableId);
-       Player player = Player.newInstance("playerId" + ++playerId, username, 0.0, Hand.newInstance(), PlayerStatus.JOINING_TABLE );
-       gameService.addPlayerToTable(tableId, player);
-       return "success";
-   }
+    @CrossOrigin
+    @RequestMapping(method = RequestMethod.POST)
+    public List<Player> addPlayerToGame(@RequestBody AddPlayerDto request) {
+        String tableId = request.getTableId();
+        String username = request.getUsername();
+        logger.info("Attempting to add player to table. username=" + username + "tableId=" + tableId);
 
-    @RequestMapping(method = RequestMethod.GET)
-    public void addPlayerToGame() {
-        logger.info("Got GET request");
+        Optional<Player> player = loginService.getLoggedInPlayer(username);
+        player.ifPresent((player1) ->  gameService.addPlayerToTable(tableId, player1));
+        return gameService.getPlayersAtTable(tableId);
+    }
+
+    @CrossOrigin
+    @RequestMapping(value = "/details", method = RequestMethod.GET)
+    public List<RoomDetails> getAllRoomDetails() {
+        return gameService.getRooms();
     }
 }

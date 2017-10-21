@@ -13,16 +13,12 @@ import com.baldrick.texas.holdem.model.Deck;
 import com.baldrick.texas.holdem.model.Hand;
 import com.baldrick.texas.holdem.model.Player;
 import com.baldrick.texas.holdem.model.Pot;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 
 import static junit.framework.TestCase.assertEquals;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.util.Lists.newArrayList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;

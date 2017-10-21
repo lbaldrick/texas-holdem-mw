@@ -7,11 +7,12 @@ import com.baldrick.texas.holdem.model.Player;
 import com.baldrick.texas.holdem.components.game.Game;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+
+import com.baldrick.texas.holdem.model.RoomDetails;
 import com.baldrick.texas.holdem.notifiers.Notifier;
 import com.baldrick.texas.holdem.states.*;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.log4j.Logger;
 
 public class Room implements Context {
     
@@ -34,9 +35,8 @@ public class Room implements Context {
     private int currentGameStage = 0;
     
     private int currentPlayerIndex = 0;
-    
-    private static final Logger logger = LogManager.getLogger(Room.class);
-   
+
+    private static final Logger logger = Logger.getLogger(Room.class);
     
     public Room(Game game, Notifier stateChangeNotifier, long gameWaitPeriod, ExecutorService executor, String roomId) {
         this.game = game;
@@ -62,13 +62,13 @@ public class Room implements Context {
 
     @Override
     public void changeState(State state) {
-        logger.info("State changed from currentState={} to newState={}", this.state.toString(), state.toString());
+        logger.info("State changed from currentState=" + this.state.toString() + "to newState=" + state.toString());
         this.state = (TexasHoldemState) state;
         this.state.process(this);
     }
       
     public void playerBet(String playerId, double amount) {
-        logger.info("Player with id={} BET amount={}", playerId, amount);
+        logger.info("Player with id=" + playerId + " BET amount="+ amount);
         if( this.game.playerBet(playerId, amount)) {
             notifyPlayerStatusChange(TexasHoldemState.PLAYER_BET, PlayerStatus.BET, playerId);
         } else {
@@ -77,7 +77,7 @@ public class Room implements Context {
     }
     
     public void playerRaise(String playerId, double amount) {
-        logger.info("Player with id={} RAISED amount={}", playerId, amount);
+        logger.info("Player with id=" + playerId + " RAISED amount=" + amount );
         if( this.game.playerRaise(playerId, amount)) {
             notifyPlayerStatusChange(TexasHoldemState.PLAYER_RAISED, PlayerStatus.RAISE, playerId);
         } else {
@@ -114,10 +114,22 @@ public class Room implements Context {
         return this.game.getCurrentPlayers().contains(playerId);
     }
 
+    public List<Player> getAllPlayers() {
+        return this.game.getCurrentPlayers();
+    }
+
+    public RoomDetails getRoomDetails() {
+        return new RoomDetails(roomId,
+                this.game.getMaxNumPlayers(),
+                this.game.getCurrentPlayers()
+                        .stream()
+                        .map((player) -> player.getPlayerId())
+                        .collect(Collectors.toList()));
+    }
 
     public boolean addPlayer(Player player) {
         if (gameInProgress) {
-            logger.warn("Could not player to table as game in progress. username={}", player.getUsername());
+            logger.warn("Could not player to table as game in progress. username={}" + player.getUsername());
             return false;
         }
 
@@ -157,7 +169,7 @@ public class Room implements Context {
             String playerId = player.getPlayerId();
             List<Card> cards = player.getHand().getCards();
             currentPlayerIndex++;
-            logger.info("Notifying player HAS_FOCUS playerId={}", playerId);
+            logger.info("Notifying player HAS_FOCUS playerId=" + playerId);
             this.state.notify(this, new PlayerStateChange(new PlayerState(PlayerStatus.HAS_FOCUS, playerId, cards, 0.0)));
             logger.debug("Try to starting timer");
             try {
@@ -169,10 +181,10 @@ public class Room implements Context {
     }
     
     private void setPlayerWaitTimer(String playerId) throws InterruptedException {
-        logger.info("Starting player timer currentTime={}", System.currentTimeMillis());
+        logger.info("Starting player timer currentTime=" + System.currentTimeMillis());
         Thread.sleep(this.gameWaitPeriod);
 
-        logger.info("Ending player timer currentTime={}", System.currentTimeMillis());
+        logger.info("Ending player timer currentTime="+ System.currentTimeMillis());
         numOfPlayersTurnsTaken++;
         // TODO - player wont always check if timedout can cold to so will have to implement that
         notifyPlayerStatusChange(TexasHoldemState.PLAYER_CHECKED, PlayerStatus.CHECK, playerId, false);
@@ -221,7 +233,7 @@ public class Room implements Context {
     }
     
     private State getGameStage(int stage) {
-        logger.info("Requesting game stage gameStage={}", stage);
+        logger.info("Requesting game stage gameStage="+ stage);
         switch(stage) {
             case 0: return TexasHoldemState.DEAL_PLAYER_CARDS;
             case 1: return TexasHoldemState.DEAL_FLOP;
@@ -410,8 +422,9 @@ public class Room implements Context {
         };
         
         protected void notifyStateChange(Room context, StateChange stateChange) {
-            logger.info("Notifying of state={} with change={}", context.state, stateChange.toString());
+            logger.info("Notifying of state=" +  context.state + " with change=" + stateChange.toString());
             context.stateChangeNotifier.notify(stateChange, "/topic/" + context.getRoomId());
         };
     }
+
 }

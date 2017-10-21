@@ -1,27 +1,25 @@
 package com.baldrick.texas.holdem.components.rooms;
 
 import com.baldrick.texas.holdem.components.game.Game;
-import com.baldrick.texas.holdem.controllers.GameController;
 import com.baldrick.texas.holdem.model.Deck;
 import com.baldrick.texas.holdem.model.Player;
 import com.baldrick.texas.holdem.model.Pot;
+import com.baldrick.texas.holdem.model.RoomDetails;
 import com.baldrick.texas.holdem.notifiers.Notifier;
-import com.baldrick.texas.holdem.states.StateChange;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import com.baldrick.texas.holdem.services.GameService;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 @Component
 public class RoomsManager {
 
-    private static final Logger logger = LogManager.getLogger(RoomsManager.class);
-
+    private static final Logger logger = Logger.getLogger(RoomsManager.class);
     private final ConcurrentHashMap<String, Room> rooms;
 
     private static final String ROOM_NAME_PREFIX = "ROOM_";
@@ -49,7 +47,7 @@ public class RoomsManager {
         Room stateMachine = rooms.get(tableId);
 
         if (stateMachine != null) {
-            logger.info("Adding player to table. username={}, tableId={}", player.getUsername(), tableId);
+            logger.info("Adding player to table. username=" + player.getUsername() + "tableId=" + tableId);
             return stateMachine.addPlayer(player);
         }
 
@@ -63,5 +61,20 @@ public class RoomsManager {
 
         return null;
     }
+
+    public List<Player> getAllPlayersAtTable(String tableId) {
+        Room room = rooms.get(tableId);
+
+        return room.getAllPlayers();
+
+    }
+
+    public List<RoomDetails> getRooms() {
+        List<RoomDetails> roomDetailsList =  new ArrayList<>();
+        rooms.entrySet().forEach((room) -> roomDetailsList.add(room.getValue().getRoomDetails()));
+        return roomDetailsList;
+    }
+
+
 
 }
